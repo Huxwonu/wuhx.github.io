@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, maximum-scale=0.75, user-scalable=no">
+    <title>跳动的心</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+
+        #top-container {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        #controls {
+            top: 20px;
+            left: 20px;
+            position: fixed;
+            /* background: rgba(255, 255, 255, 0.8); */
+            padding: 15px;
+            border-radius: 10px;
+            z-index: 100;
+        }
+
+        #audio-controls {
+            margin-top: 8px;
+        }
+
+        #lyrics {
+            position: absolute;
+            bottom: 5%;
+            left: 50%;
+            transform: translateX(-50%);
+            max-width: 60%;
+            min-width: 200px;
+            width: fit-content;
+            color: #333;
+            padding: 20px 30px;
+            z-index: 1;
+            display: none;
+        }
+
+        .lyric-content {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: center;
+            font-size: 1.3rem;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        #french-lyrics {
+            font-weight: 600;
+        }
+
+        canvas {
+            will-change: transform;
+            image-rendering: optimizeSpeed;
+        }
+
+        #help-btn {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: rgba(255, 105, 180, 0.9);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 1.6rem;
+            z-index: 200;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            transition: transform 0.2s;
+        }
+
+        #help-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            z-index: 300;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 25px;
+            border-radius: 15px;
+            width: 85%;
+            max-width: 500px;
+            position: relative;
+            animation: modalSlide 0.3s ease-out;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        #copyright {
+            position: fixed;
+            bottom: 0;
+            left:10px;
+            color: #666;
+            font-size: 0.9rem;
+            font-style: italic;
+            z-index: 250;
+            background: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            backdrop-filter: blur(3px);
+        }
+
+        @keyframes modalSlide {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 28px;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .close:hover {
+            color: #FF69B4;
+        }
+
+        .modal-content h2 {
+            color: #FF69B4;
+            margin-top: 0%;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .modal-content ul {
+            padding-left: 20px;
+            line-height: 1.6;
+        }
+
+        .modal-content li {
+            margin-bottom: 10px;
+        }
+
+        @media (max-width: 768px) {
+            #lyrics {
+                bottom: 10%;
+                padding: 15px 20px;
+                font-size: 1.1rem;
+            }
+            
+            .lyric-content {
+                white-space: normal;
+                text-overflow: clip;
+            }
+            
+            #controls {
+                padding: 12px; 
+                transform: scale(0.9);
+                left: auto;
+                top: 10px;
+            }
+
+            #audio-controls {
+                margin-top: 6px;
+            }
+
+            .modal-content {
+                padding: 20px 15px; /* 减少垂直padding */
+                width: 90%;
+                max-width: none;
+                min-height: auto; /* 移除固定最小高度 */
+                max-height: 80vh; /* 降低最大高度比例 */
+            }
+
+            .modal-content h2 {
+                font-size: 1.8rem;
+                margin-bottom: 10px;
+            }
+
+            .modal-content ul {
+                padding-left: 10px;
+                line-height: 1.5;
+                margin-bottom: 0; /* 移除列表底部边距 */
+            }
+
+            .modal-content li {
+                margin-bottom: 8px;
+                font-size: 1.1rem;
+            }
+
+            .modal-content li ul {
+                margin-top: 5px;
+                padding-left: 15px;
+            }
+
+            .close {
+                top: 10px;
+                right: 15px;
+                font-size: 32px;
+            }
+            
+            #help-btn {
+                bottom: 15px;
+                right: 15px;
+                width: 40px;
+                height: 40px;
+                font-size: 1.4rem;
+            }
+
+            #copyright {
+                left: 5px;
+                font-size: 0.5rem;
+                bottom: 0;
+                padding: 3px 8px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="top-container">
+        <div id="controls">
+            <div id="audio-controls">
+                <audio id="myAudio" controls loop>
+                    <source src="https://whx-music.oss-cn-chengdu.aliyuncs.com/JORDANN%20-%20Dehors.mp3" type="audio/mpeg">
+                </audio>
+            </div>
+        </div>
+    </div>
+
+    <button id="help-btn" title="操作指南">?</button>
+
+    <div id="help-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>操作指南</h2>
+            <ul>
+                <li>🎮 <strong>鼠标拖拽</strong> - 移动爱心位置</li>
+                <li>🖱️ <strong>鼠标滚轮</strong> - 缩放爱心大小</li>
+                <li>📱 <strong>手机操作</strong>：
+                    <ul>
+                        <li>单指长按拖动 - 移动爱心</li>
+                        <li>双指捏合 - 缩放爱心</li>
+                        <li>点击屏幕 - 生成粒子特效</li>
+                    </ul>
+                </li>
+                <li>🎧 <strong>音频控制</strong> - 使用面板播放/暂停音乐</li>
+            </ul>
+        </div>
+    </div>
+
+    <div id="lyrics">
+        <div id="french-lyrics" class="lyric-content"></div>
+        <div id="chinese-lyrics" class="lyric-content"></div>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <div id="copyright">版权声明：未经开发者同意，请勿转载，否者后果自负</div>
+
+    <script>
+        if (!Array.prototype.findLast) {
+            Array.prototype.findLast = function(predicate) {
+                for (let i = this.length - 1; i >= 0; i--) {
+                    if (predicate(this[i], i, this)) return this[i];
+                }
+                return undefined;
+            };
+        }
+
+        const parseLyrics = (lyricLines) => {
+            return lyricLines.split('\n')
+              .filter(line => line.match(/\[\d+:\d+\.\d+\].+/))
+              .map((line) => {
+                    const match = line.match(/\[(\d+:\d+\.\d+)\](.*)/);
+                    if (!match) return null;
+
+                    const [_, timeStr, content] = match;
+                    const [french, chinese] = content.split(/([\u4e00-\u9FFF].*)/);
+
+                    const isMetadata = timeStr.startsWith('0:0');
+                    return {
+                        time: convertTimeToSeconds(timeStr),
+                        french: (isMetadata ? content : french).trim(),
+                        chinese: isMetadata ? '' : (chinese || '').trim()
+                    };
+                }).filter(Boolean);
+        };
+
+        const convertTimeToSeconds = (timeStr) => {
+            const [minutes, seconds] = timeStr.split(':');
+            return parseFloat(minutes) * 60 + parseFloat(seconds);
+        };
+
+        class HeartParticle {
+            constructor() { 
+                this.reset();
+            }
+
+            reset() {
+                this.life = 0;
+                this.radius = 1.5 + Math.random()*2;
+                this.orbitSpeed = (Math.random()-0.5)*0.02;
+                this.speed = 0.5 + Math.random()*0.5;
+            }
+
+            spawn(baseAngle, heartX, heartY, baseScale, spawnTime) {
+                this.baseAngle = baseAngle;
+                this.heartX = heartX;
+                this.heartY = heartY;
+                this.baseScale = baseScale;
+                this.spawnTime = spawnTime;
+                this.life = 1.0;
+                
+                const {x, y} = this.calcHeartPosition(baseAngle, baseScale);
+                this.x = x + heartX;
+                this.y = y + heartY;
+            }
+
+            calcHeartPosition(angle, scale) {
+                const t = angle;
+                const x = 16 * Math.pow(Math.sin(t), 3) * 15 * scale;
+                const y = -(13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t)) * 15 * scale;
+                return {x, y};
+            }
+
+            update(time) { 
+                if (!this.spawnTime) return;
+                const elapsed = time - this.spawnTime;
+                this.life = Math.max(0, 1 - (elapsed/3000));
+                
+                const target = this.calcHeartPosition(
+                    this.baseAngle + elapsed*this.orbitSpeed,
+                    this.baseScale * (1 + elapsed/1000)
+                );
+                
+                this.x += (target.x + this.heartX - this.x) * 0.1;
+                this.y += (target.y + this.heartY - this.y) * 0.1;
+            }
+            
+            draw(ctx) {
+                if (this.life <= 0) return;
+                
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 
+                    this.radius * this.life,
+                    0, Math.PI*2
+                );
+                ctx.fillStyle = `rgba(255,100,180,${this.life * 0.7})`;
+                ctx.fill();
+            }
+        }
+
+        const BACKGROUND_COLORS = [
+            [198, 223, 244],
+            [245, 224, 232],
+            [230, 230, 250],
+            [240, 248, 255]
+        ];
+
+        class HeartAnimation {
+            constructor(ctx, canvas) {
+                this.canvas = canvas;
+                this.ctx = ctx;
+                this.baseScale = 0.5;
+                this.pulseSpeed = 0.02;
+                this.beatPhase = 0;
+                this.bgColorIndex = 0;
+                this.colorLerp = 0;
+                this.mouseX = window.innerWidth/2;  // ✅ 使用窗口尺寸
+                this.mouseY = window.innerHeight/2;
+                this.particlePool = new Array(1000).fill().map(() => new HeartParticle());
+                this.particleIndex = 0;
+
+                this.initControls();
+            }
+
+            drawParticles(ctx) {
+                this.particlePool.forEach(p => p.draw(ctx));
+            }
+
+            initControls() {
+                this.canvas.addEventListener('wheel', e => {
+                    e.preventDefault();
+                    const delta = Math.sign(e.deltaY);
+                    this.baseScale = Math.max(0.5, Math.min(1.5, this.baseScale - delta * 0.1));
+                });
+            }
+
+            update() {
+                this.colorLerp += 0.005;
+                if (this.colorLerp >= 1) {
+                    this.bgColorIndex = (this.bgColorIndex + 1) % BACKGROUND_COLORS.length;
+                    this.colorLerp = 0;
+                }
+                this.beatPhase += this.pulseSpeed;
+                if (this.beatPhase > Math.PI * 2) this.beatPhase = 0;
+                
+                const now = Date.now();
+                this.particlePool.forEach(p => p.update(now));
+
+                // console.log('当前速度:', this.pulseSpeed); // 应始终显示0.02
+                // console.log('心跳相位:', this.beatPhase); // 应持续变化
+            }
+
+            generateHeartPath(scale) {
+                const points = [];
+                const angleThreshold = 0.2;
+                for (let t = 0; t < Math.PI * 2; t += 0.02) { 
+                    const x = 16 * Math.pow(Math.sin(t), 3);
+                    const rawY = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
+                    
+                    const delta = 0.001;
+                    const dx = 16 * (Math.pow(Math.sin(t+delta), 3) - Math.pow(Math.sin(t-delta), 3)) / (2*delta);
+                    const dyRaw = (13 * Math.cos(t+delta) - 5 * Math.cos(2*(t+delta)) - 2 * Math.cos(3*(t+delta)) - Math.cos(4*(t+delta)) 
+                                - (13 * Math.cos(t-delta) - 5 * Math.cos(2*(t-delta)) - 2 * Math.cos(3*(t-delta)) - Math.cos(4*(t-delta)))) 
+                                / (2*delta);
+                    
+                    const length = Math.sqrt(dx*dx + dyRaw*dyRaw);
+                    const nx = -dyRaw / length;
+                    const ny = dx / length;
+                    
+                    let finalAngle = Math.atan2(-ny, nx);
+                    if (Math.abs(t) < angleThreshold || Math.abs(t - Math.PI) < angleThreshold) {
+                        finalAngle = Math.atan2(-rawY, x);
+                    }
+
+                    points.push({
+                        x: x * 15 * scale + this.mouseX,
+                        y: (-rawY) * 15 * scale + this.mouseY,
+                        angle: finalAngle
+                    });
+                }
+                return points;
+            }
+
+            drawHeart() {
+                const scale = this.baseScale + Math.sin(this.beatPhase) * 0.1;
+                const points = this.generateHeartPath(scale);
+                
+                const gradient = this.ctx.createRadialGradient(
+                this.mouseX, this.mouseY, 10 * scale,
+                this.mouseX, this.mouseY, 150 * scale
+                );
+                gradient.addColorStop(0, '#FF0066');
+                gradient.addColorStop(1, '#FF69B4');
+
+                this.ctx.shadowColor = 'rgba(255,0,100,0.3)';
+                this.ctx.shadowBlur = 20 * scale;
+                this.drawHeartPath(points, gradient);
+                this.ctx.shadowBlur = 0;
+            }
+
+            createParticles(time) {
+                const count = 20;
+                for(let i=0; i<count; i++){
+                    if(this.particleIndex >= this.particlePool.length) return;
+                    
+                    const p = this.particlePool[this.particleIndex];
+                    p.baseAngle = Math.random()*Math.PI*2;
+                    p.spawnTime = time;
+                    p.life = 1.0;
+                    p.speed = 0.5 + Math.random()*0.5;
+                    p.orbitSpeed = (Math.random()-0.5)*0.02;
+                    
+                    const {x, y} = p.calcHeartPosition(p.baseAngle, this.baseScale);
+                    p.x = x + this.mouseX;
+                    p.y = y + this.mouseY;
+                    
+                    this.particleIndex++;
+                }
+            }
+
+            createParticlesOnClick(time) {
+                const count = 520;
+                for(let i=0; i<count; i++){
+                    let p = this.particlePool.find(p => p.life <= 0);
+                    if (!p) return;
+                    
+                    p.spawn(
+                        Math.random()*Math.PI*2,
+                        this.mouseX,
+                        this.mouseY,
+                        this.baseScale,
+                        time
+                    );
+                }
+            }
+
+            drawHeartPath(points, fillStyle) {
+                this.ctx.beginPath();
+                points.forEach((p, i) => i === 0 ? this.ctx.moveTo(p.x, p.y) : this.ctx.lineTo(p.x, p.y));
+                this.ctx.closePath();
+                this.ctx.fillStyle = fillStyle;
+                this.ctx.fill();
+            }
+
+            drawBackground() {
+                const current = BACKGROUND_COLORS[this.bgColorIndex];
+                const next = BACKGROUND_COLORS[(this.bgColorIndex + 1) % BACKGROUND_COLORS.length];
+
+                const r = current[0] + (next[0] - current[0]) * this.colorLerp;
+                const g = current[1] + (next[1] - current[1]) * this.colorLerp;
+                const b = current[2] + (next[2] - current[2]) * this.colorLerp;
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                this.ctx.fillStyle = `rgb(${r},${g},${b})`;
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            }   
+        }
+
+        function setupEventListeners(canvas, audio, animation) {
+            let longPressTimer = null;
+            let isLongPress = false;
+            let initialDistance = null;
+            let isPinching = false;
+            let initialPinchCenter = null;
+            let initialScale = 1;
+            let lastTouchTime = 0;
+
+            const handleMove = e => {
+                const rect = canvas.getBoundingClientRect();
+                let clientX, clientY;
+                
+                if (e.touches) {
+                    clientX = e.touches[0].clientX;
+                    clientY = e.touches[0].clientY;
+                } else {
+                    clientX = e.clientX;
+                    clientY = e.clientY;
+                }
+                
+                animation.mouseX = clientX - rect.left;
+                animation.mouseY = clientY - rect.top;
+            };
+
+            canvas.addEventListener('mousemove', handleMove);
+            canvas.addEventListener('click', e => {
+                const now = Date.now();
+                if (now - lastTouchTime > 300) {
+                    animation.createParticlesOnClick(now);
+                }
+            });
+
+            canvas.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                const touches = e.touches;
+
+                if (touches.length === 2) {
+                    isPinching = true;
+                    const touch1 = touches[0];
+                    const touch2 = touches[1];
+                    initialDistance = Math.hypot(
+                        touch2.clientX - touch1.clientX,
+                        touch2.clientY - touch1.clientY
+                    );
+                    initialScale = animation.baseScale;
+                    
+                    const rect = canvas.getBoundingClientRect();
+                    initialPinchCenter = {
+                        x: (touch1.clientX + touch2.clientX)/2 - rect.left,
+                        y: (touch1.clientY + touch2.clientY)/2 - rect.top
+                    };
+                    return;
+                }
+                
+                if (touches.length === 1) {
+                    const rect = canvas.getBoundingClientRect();
+                    const touch = touches[0];
+                    const initial = {
+                        x: touch.clientX - rect.left,
+                        y: touch.clientY - rect.top
+                    };
+                    
+                    longPressTimer = setTimeout(() => {
+                        isLongPress = true;
+                        animation.mouseX = initial.x;
+                        animation.mouseY = initial.y;
+                    }, 500);
+                    
+                    this.initialTouch = initial;
+                }
+            }, { passive: false });
+
+            canvas.addEventListener('touchmove', function(e) {
+                e.preventDefault();
+                const touches = e.touches;
+
+                if (isPinching && touches.length === 2) {
+                    const touch1 = touches[0];
+                    const touch2 = touches[1];
+                    const currentDistance = Math.hypot(
+                        touch2.clientX - touch1.clientX,
+                        touch2.clientY - touch1.clientY
+                    );
+                    
+                    const scale = (currentDistance / initialDistance) * initialScale;
+                    const newScale = Math.max(0.5, Math.min(1.5, scale));
+                    
+                    animation.baseScale = newScale;
+                    animation.mouseX = initialPinchCenter.x;
+                    animation.mouseY = initialPinchCenter.y;
+                    return;
+                }
+                
+                if (touches.length === 1 && isLongPress) {
+                    const rect = canvas.getBoundingClientRect();
+                    const touch = touches[0];
+                    const deltaX = touch.clientX - rect.left - this.initialTouch.x;
+                    const deltaY = touch.clientY - rect.top - this.initialTouch.y;
+                    animation.mouseX = this.initialTouch.x + deltaX;
+                    animation.mouseY = this.initialTouch.y + deltaY;
+                }
+            }, { passive: false });
+
+            canvas.addEventListener('touchend', function(e) {
+                e.preventDefault();
+                clearTimeout(longPressTimer);
+                
+                if (e.touches.length === 0) {
+                    isPinching = false;
+                    initialPinchCenter = null;
+                }
+                if (!isLongPress && e.changedTouches.length === 1) {
+                    const now = Date.now();
+                    if (now - lastTouchTime > 300) {
+                        animation.createParticlesOnClick(now);
+                    }
+                    lastTouchTime = now;
+                }
+                
+                isLongPress = false;
+                initialDistance = null;
+            }, { passive: false });
+        }
+
+        function setupLyricsUpdate(audio, lyrics) {
+            let isFirstPlay = true;
+            
+            const update = () => {
+                const currentTime = audio.currentTime;
+                const currentLyric = lyrics.slice().reverse().find(l => l.time <= currentTime);
+                
+                if (currentLyric) {
+                    document.getElementById('french-lyrics').textContent = currentLyric.french;
+                    document.getElementById('chinese-lyrics').textContent = currentLyric.chinese;
+                    document.getElementById('lyrics').style.display = 'block';
+                } else {
+                    document.getElementById('lyrics').style.display = 'none';
+                }
+            };
+
+            audio.addEventListener('play', () => {
+                document.getElementById('lyrics').style.display = 'none';
+                audio.addEventListener('timeupdate', update);
+            });
+
+            audio.addEventListener('pause', () => {
+                audio.removeEventListener('timeupdate', update);
+            });
+
+            audio.addEventListener('ended', () => {
+                audio.removeEventListener('timeupdate', update);
+            });
+        }
+
+        window.onload = function () {
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+
+            function resize() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            resize();
+            window.addEventListener('resize', resize);
+
+            const audio = document.getElementById('myAudio');
+
+            const lyrics = parseLyrics(`[0:00.00]作词: Jordan Hébert / Marc André Brunelle 
+        [0:01.00]作曲: Jordan Hébert / Marc André Brunelle
+        [0:12.80]La fanfare frémit au carrefour de ta forme 号角声幻化成你的身形在十字路口颤抖
+        [0:24.00]Martellant sa poésie diforme 锤炼出无形的诗意
+        [0:34.90]C'est l'eau de vie dans la sève, la conscience qui s'achève 这是烈酒上头的作用，是我即将终结的意识
+        [0:46.80]Témoin de ta vision, auditeur de ta prison 我见证你的愿景，也倾听你的桎梏
+        [0:54.80]Et quand tu briseras ta cage 当你打破束缚你的牢笼
+        [0:57.80]On ira à la foire 我们将去往乌托邦
+        [1:00.80]On tournera la page et 我们会把过去翻页
+        [1:02.80]Tu serreras mon corps 你将会紧紧拥抱我
+        [1:05.80]On partira à la nage 我们会去海里游泳
+        [1:08.80]On aura la mer à boire 大口喝下咸涩的海水
+        [1:11.80]Tu manques pas de courage 你并不缺乏勇气
+        [1:14.80]Alors viens jouer dehors 所以向外迈出那一步吧
+        [1:16.80]Alors viens jouer dehors 所以向外迈出那一步吧
+        [1:31.90]Je te gribouillerai des cartes comme un grand explorateur 我会像一个伟大的探索家般为你指南绘制
+        [1:42.90]Pour les moments ou tu t'écartes, que ça te fasse moins peur 在你失去方向的时候，它能让你不那么害怕
+        [1:53.90]Ça t'empêche de rire, ça t'impose le pire 它会阻止你奚落这世界，它会强迫你看到最坏的事
+        [2:05.80]Témoin de ta vision, auditeur de ta prison 我见证你的愿景，也倾听你的桎梏
+        [2:13.90]Et quand tu briseras ta cage 当你打破束缚你的牢笼
+        [2:16.90]On ira à la foire 我们将去往乌托邦
+        [2:19.90]On tournera la page et 我们会把过去翻页
+        [2:22.90]Tu serreras mon corps 你将会紧紧拥抱我
+        [2:24.90]On partira à la nage 我们会去海里游泳
+        [2:27.90]On aura la mer à boire 大口喝下咸涩的海水
+        [2:30.90]Tu manques pas de courage 你并不缺乏勇气
+        [2:33.90]Alors viens jouer dehors 所以向外迈出那一步吧
+        [2:36.90]Et quand tu briseras ta cage 当你打破束缚你的牢笼
+        [2:39.80]On ira à la foire 我们将去往乌托邦
+        [2:41.90]On tournera la page et 我们会把过去翻页
+        [2:44.90]Tu serreras mon corps 你将会紧紧拥抱我
+        [2:47.90]On partira à la nage 我们会去海里游泳
+        [2:50.90]On aura la mer à boire 大口喝下咸涩的海水
+        [2:53.90]Tu manques pas de courage 你并不缺乏勇气
+        [2:55.90]Alors viens jouer dehors 所以向外迈出那一步吧
+        [2:58.90]Alors viens jouer dehors 所以向外迈出那一步吧`);
+
+            const animation = new HeartAnimation(ctx, canvas);
+
+            const helpModal = document.getElementById('help-modal');
+            const helpBtn = document.getElementById('help-btn');
+
+            helpBtn.addEventListener('click', () => {
+                helpModal.style.display = 'flex';
+            });
+
+            document.querySelector('.close').addEventListener('click', () => {
+                helpModal.style.display = 'none';
+            });
+
+            window.addEventListener('click', (e) => {
+                if (e.target === helpModal) {
+                    helpModal.style.display = 'none';
+                }
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && helpModal.style.display === 'flex') {
+                    helpModal.style.display = 'none';
+                }
+            });
+
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                animation.drawBackground();
+                animation.drawParticles(ctx);
+                animation.drawHeart();
+                animation.update();
+                requestAnimationFrame(animate);
+            }
+            animate();
+
+            setupEventListeners(canvas, audio, animation);
+            setupLyricsUpdate(audio, lyrics);
+        };
+    </script>
+</body>
+</html>
